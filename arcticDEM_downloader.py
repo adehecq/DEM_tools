@@ -219,8 +219,8 @@ np.savetxt(list_file,dem_files,fmt='%s')
 
 print "\n*** Generate final DEM ***"
 
-#cmd = 'gdalwarp --optfile %s %s' %(list_file,args.outfile)
-cmd = 'gdalwarp %s/*dem.tif %s' %(outdir,args.outfile)
+cmd = 'gdalwarp --optfile %s %s -r average -co "COMPRESS=LZW"' %(list_file,args.outfile)
+#cmd = 'gdalwarp %s/*dem.tif %s -r average -co "COMPRESS=LZW"' %(outdir,args.outfile)
 
 if args.te!=None:
 
@@ -259,3 +259,4 @@ else:
       for f in dem_files:
             os.remove(f)
       os.remove(list_file)
+      os.system('rm -r %s/robots.txt*' %outdir)
