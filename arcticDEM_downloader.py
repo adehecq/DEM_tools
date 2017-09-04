@@ -130,10 +130,10 @@ if args.shp!=None:
             if union.Intersect(feat.GetGeometryRef()):
                   inds.append(k)
 
-      list_tiles = np.sort(tiles.fields.values['tile'][inds])
+      list_tiles = np.sort(np.unique(tiles.fields.values['tile'][inds]))
 
 else:
-      list_tiles = np.sort(tiles.fields.values['tile'])
+      list_tiles = np.sort(np.unique(tiles.fields.values['tile']))
 
 
 #list_tiles = ['32_34', '32_35', '32_36', '31_34','31_35', '31_36']
@@ -172,7 +172,7 @@ for t in list_tiles:
       out=subprocess.call(wget_cmd)
       if out!=0:
             print "Error in download !!"
-            break
+            continue
       
 
 ## Untar all files ##
@@ -182,19 +182,25 @@ print "\n*** Extract archives ***"
 # Get list of tar files to extract
 tar_files = []
 for t in list_tiles:
-    l=glob(outdir + '/%s_?_?_5m_%s.tar.gz' %(t,version))
+    l=glob(outdir + '/%s_?_?_5m_%s.tar*' %(t,version))
     tar_files.extend(l)
 
 # From each archive, extract only the dem file
 dem_files = []
 for f in tar_files:
-      dem_file = f.replace('.tar.gz','_reg_dem.tif')
-      cmd = ['tar','xzvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
+      if f[-7:]=='.tar.gz':
+            print 'tar.gz', f 
+            dem_file = f.replace('.tar.gz','_reg_dem.tif')
+            cmd = ['tar','xzvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
+      else:
+            print 'tar', f
+            dem_file = f.replace('.tar','_reg_dem.tif')
+            cmd = ['tar','xvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
       print ' '.join(cmd)
       out=subprocess.call(cmd)
       if out!=0:
             print "Error extracting file %s !!" %f
-            break
+            continue
       dem_files.append(dem_file)
 
 # Save the list of dem files to file
@@ -219,8 +225,8 @@ np.savetxt(list_file,dem_files,fmt='%s')
 
 print "\n*** Generate final DEM ***"
 
-cmd = 'gdalwarp --optfile %s %s -r average -co "COMPRESS=LZW"' %(list_file,args.outfile)
-#cmd = 'gdalwarp %s/*dem.tif %s -r average -co "COMPRESS=LZW"' %(outdir,args.outfile)
+#cmd = 'gdalwarp  -r average -co "COMPRESS=LZW" --optfile %s %s' %(list_file,args.outfile) # compression will fail if file > 4GB or BIGTIFF=Yes must be used
+cmd = 'gdalwarp  -r average -ot Int16 --optfile %s %s' %(list_file,args.outfile)  
 
 if args.te!=None:
 
@@ -248,7 +254,7 @@ if args.overwrite!=False:
 print cmd; out=subprocess.call(cmd,shell=True)
 if out!=0:
       print "Error reprojecting file"
-
+      sys.exit(1)
 
 
 ## Remove temporary directory/files ##
@@ -258,5 +264,5 @@ if args.outdir==None:
 else:
       for f in dem_files:
             os.remove(f)
-      os.remove(list_file)
+      #os.remove(list_file)
       os.system('rm -r %s/robots.txt*' %outdir)
