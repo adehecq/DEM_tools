@@ -92,9 +92,10 @@ if args.shp!=None:
 
       ## Read glacier outlines ##
       gl_outlines = vect.SingleLayerVector(args.shp)
-      gl_outlines.layer.SetAttributeFilter('Area>20')
+      gl_outlines = gl_outlines.reproject(tiles.srs)
+      gl_outlines.layer.SetAttributeFilter('Area>5')
       gl_outlines.read()
-      gl_outlines.update_extent()
+      #gl_outlines.update_extent()  # causes layer.GetNextFeature() to not return anything
 
       ## Replace MultiPolygons by Polygons ##
       nfeat = gl_outlines.FeatureCount()  # somehow necessary for the loop on features to work
@@ -114,10 +115,6 @@ if args.shp!=None:
             print "ERROR with geometry"
             sys.exit(1)
 
-
-      # Reproject tiles into the glacier geometry
-      tiles=tiles.reproject(gl_outlines.srs)
-      tiles.read()
 
       ## Find polygons that intersect with glacier outlines (union)
       
