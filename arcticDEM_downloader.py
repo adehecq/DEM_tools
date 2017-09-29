@@ -27,8 +27,9 @@ parser.add_argument('outfile', type=str, help='str, path to the output file')
 
 
 # Optional arguments
-parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
-parser.add_argument('-te', dest='te', type=str, help='extent (lonmin, lonmax, latmin, latmax) of the output DEM.', nargs=4, default=None)
+parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles intersecting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
+parser.add_argument('-te', dest='te', type=str, help='extent (xmin, ymin, xmax, ymax) of the output DEM, in the ArctiDEM stereo coordinates, unless -latlon is used.', nargs=4, default=None)
+parser.add_argument('-latlon', dest='latlon', help='if set to True, extent has to be specified in lat/lon.', action='store_true')
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
 parser.add_argument('-t_srs', dest='t_srs', type=str, help='projection of the output DEM in PROJ4 format (Default is from the input DEMs).', default=None)
 parser.add_argument('-overwrite', dest='overwrite', help='if set, will overwrite the output file if exists.', action='store_true')
@@ -49,7 +50,8 @@ if (args.shp==None) & (args.te==None):
       print "ERROR: At least one of -shp or -te must be specified"
       sys.exit(1)
 
-
+if args.te!=None:
+      args.te = np.float32(args.te)
 
 ## Functions to convert MultiPolygons to Polygons
 def multipoly2poly(in_lyr, out_lyr):
@@ -78,8 +80,12 @@ def addPolygon(simplePolygon, out_lyr):
 tiles = vect.SingleLayerVector(args.tiles_file)
 
 if args.te!=None:
-      lonmin, lonmax, latmin, latmax = args.te
-      tiles.crop(lonmin,lonmax,latmin,latmax,latlon=True)
+      if args.latlon==True:
+            lonmin, latmin, lonmax, latmax = args.te
+            tiles.crop(lonmin,lonmax,latmin,latmax,latlon=True)
+      else:
+            xmin, ymin, xmax, ymax = args.te
+            tiles.crop(float(xmin),float(xmax),float(ymin),float(ymax),latlon=False)
 
 tiles.read()
 
@@ -230,16 +236,19 @@ cmd = 'gdalwarp  -r average -ot Int16 --optfile %s %s' %(list_file,args.outfile)
 
 if args.te!=None:
 
-      # reproject extent to DEM extent
-      img = raster.SingleBandRaster(dem_files[0],load_data=False)
-      x1, y1 = img.proj(lonmin,latmin)
-      x2, y2 = img.proj(lonmin,latmax)
-      x3, y3 = img.proj(lonmax,latmax)
-      x4, y4 = img.proj(lonmax,latmin)
-      xmin = min(x1,x2,x3,x4)
-      xmax = max(x1,x2,x3,x4)
-      ymin = min(y1,y2,y3,y4)
-      ymax = max(y1,y2,y3,y4)
+      if args.latlon==True:
+            # reproject extent to DEM extent
+            img = raster.SingleBandRaster(dem_files[0],load_data=False)
+            x1, y1 = img.proj(lonmin,latmin)
+            x2, y2 = img.proj(lonmin,latmax)
+            x3, y3 = img.proj(lonmax,latmax)
+            x4, y4 = img.proj(lonmax,latmin)
+            xmin = min(x1,x2,x3,x4)
+            xmax = max(x1,x2,x3,x4)
+            ymin = min(y1,y2,y3,y4)
+            ymax = max(y1,y2,y3,y4)
+      else:
+            xmin, ymin, xmax, ymax = args.te
       cmd+= ' -te %f %f %f %f' %(xmin, ymin, xmax, ymax) 
 
 if args.tr!=None:
