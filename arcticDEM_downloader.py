@@ -28,6 +28,7 @@ parser.add_argument('outfile', type=str, help='str, path to the output file')
 
 # Optional arguments
 parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
+parser.add_argument('-area_th', dest='area_th', type=str, help='float, glacier with area (as read from RGI attributes in km2) below this threshold will be excluded (Default is 5 km2).', default=5)
 parser.add_argument('-te', dest='te', type=str, help='extent (lonmin, lonmax, latmin, latmax) of the output DEM.', nargs=4, default=None)
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
 parser.add_argument('-t_srs', dest='t_srs', type=str, help='projection of the output DEM in PROJ4 format (Default is from the input DEMs).', default=None)
@@ -93,7 +94,7 @@ if args.shp!=None:
       ## Read glacier outlines ##
       gl_outlines = vect.SingleLayerVector(args.shp)
       gl_outlines = gl_outlines.reproject(tiles.srs)
-      gl_outlines.layer.SetAttributeFilter('Area>5')
+      gl_outlines.layer.SetAttributeFilter('Area>%s' %args.area_th)
       gl_outlines.read()
       #gl_outlines.update_extent()  # causes layer.GetNextFeature() to not return anything
 
