@@ -207,6 +207,9 @@ for f in tar_files:
             continue
       dem_files.append(dem_file)
 
+# Some files are downloaded twice because they exist as .tar and .tar.gz. Remove doubles.
+dem_files = np.unique(dem_files)
+
 # Save the list of dem files to file
 list_file = outdir + '/list_files.txt'
 np.savetxt(list_file,dem_files,fmt='%s')
