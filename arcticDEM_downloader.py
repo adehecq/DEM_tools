@@ -33,6 +33,7 @@ parser.add_argument('-te', dest='te', type=str, help='extent (xmin, ymin, xmax, 
 parser.add_argument('-latlon', dest='latlon', help='if set to True, extent has to be specified in lat/lon.', action='store_true')
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
 parser.add_argument('-t_srs', dest='t_srs', type=str, help='projection of the output DEM in PROJ4 format (Default is from the input DEMs).', default=None)
+parser.add_argument('-skip-download', dest='skip_download', help='if set, will skip download and extracting of tiles, will use tiles already downloaded.', action='store_true')
 parser.add_argument('-overwrite', dest='overwrite', help='if set, will overwrite the output file if exists.', action='store_true')
 parser.add_argument('-outdir', dest='outdir', type=str, help='str, path to output directory where to save the tiles (Default, create a temporary file that is deleted a the end).', default=None)
 
@@ -155,28 +156,32 @@ else:
 
 ## Download files ##
 
-print "\n*** Download tiles in %s ***" %outdir
-print "%i tiles to download" %len(list_tiles)
+if args.skip_download==True:
+      pass
+else:
 
-for t in list_tiles:
+      print "\n*** Download tiles in %s ***" %outdir
+      print "%i tiles to download" %len(list_tiles)
 
-      print "\n ** Tile %s **" %t
-      
-      # wget options:
-      # -r for recursive download
-      # -N replace file locally if timestamp is older
-      # -nd to save everything in one folder, remove original tree
-      # -np does not include parent directories
-      # -nv non verbose, display less information
-      # -R to exclude files
-      # -P destination folder
-      # Don't forget the slash at the end of URL!
-      wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/' %(URL,version,t), '-P', '%s' %outdir]
-      print ' CMD = ' + ' '.join(wget_cmd)
-      out=subprocess.call(wget_cmd)
-      if out!=0:
-            print "Error in download !!"
-            continue
+      for t in list_tiles:
+
+            print "\n ** Tile %s **" %t
+
+            # wget options:
+            # -r for recursive download
+            # -N replace file locally if timestamp is older
+            # -nd to save everything in one folder, remove original tree
+            # -np does not include parent directories
+            # -nv non verbose, display less information
+            # -R to exclude files
+            # -P destination folder
+            # Don't forget the slash at the end of URL!
+            wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/' %(URL,version,t), '-P', '%s' %outdir]
+            print ' CMD = ' + ' '.join(wget_cmd)
+            out=subprocess.call(wget_cmd)
+            if out!=0:
+                  print "Error in download !!"
+                  continue
       
 
 ## Untar all files ##
@@ -201,10 +206,13 @@ for f in tar_files:
             dem_file = f.replace('.tar','_reg_dem.tif')
             cmd = ['tar','xvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
       print ' '.join(cmd)
-      out=subprocess.call(cmd)
-      if out!=0:
-            print "Error extracting file %s !!" %f
-            continue
+      if args.skip_download==True:
+            pass
+      else:
+            out=subprocess.call(cmd)
+            if out!=0:
+                  print "Error extracting file %s !!" %f
+                  continue
       dem_files.append(dem_file)
 
 # Some files are downloaded twice because they exist as .tar and .tar.gz. Remove doubles.
