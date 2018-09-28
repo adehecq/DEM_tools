@@ -45,7 +45,7 @@ args = parser.parse_args()
 URL = 'http://data.pgc.umn.edu/elev/dem/setsm/ArcticDEM/mosaic/'
 
 # Version to be downloaded
-version = 'v2.0'
+version = 'v3.0/10m/'
 
 ## Check that all necessary input arguments are specified
 if (args.shp==None) & (args.te==None):
