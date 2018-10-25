@@ -45,14 +45,15 @@ args = parser.parse_args()
 URL = 'http://data.pgc.umn.edu/elev/dem/setsm/ArcticDEM/mosaic/'
 
 # Version to be downloaded
-version = 'v3.0/10m/'
+version = 'v3.0'
+resolution = '10m'
 
 ## Check that all necessary input arguments are specified
-if (args.shp==None) & (args.te==None):
+if (args.shp is None) & (args.te is None):
       print "ERROR: At least one of -shp or -te must be specified"
       sys.exit(1)
 
-if args.te!=None:
+if args.te is not None:
       args.te = np.float32(args.te)
 
 ## Functions to convert MultiPolygons to Polygons
@@ -81,7 +82,7 @@ def addPolygon(simplePolygon, out_lyr):
 ## Read ArticDEM tiles shapefile ##
 tiles = vect.SingleLayerVector(args.tiles_file)
 
-if args.te!=None:
+if args.te is not None:
       if args.latlon==True:
             lonmin, latmin, lonmax, latmax = args.te
             tiles.crop(lonmin,lonmax,latmin,latmax,latlon=True)
@@ -94,7 +95,7 @@ tiles.read()
 
 ## Read and simplify the external shapefile (RGI for now)
 
-if args.shp!=None:
+if args.shp is not None:
       
       print "*** Generate simplified geometry for shapefile ***"
 
@@ -176,7 +177,7 @@ else:
             # -R to exclude files
             # -P destination folder
             # Don't forget the slash at the end of URL!
-            wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/' %(URL,version,t), '-P', '%s' %outdir]
+            wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/%s/' %(URL,version,resolution,t), '-P', '%s' %outdir]
             print ' CMD = ' + ' '.join(wget_cmd)
             out=subprocess.call(wget_cmd)
             if out!=0:
@@ -191,7 +192,7 @@ print "\n*** Extract archives ***"
 # Get list of tar files to extract
 tar_files = []
 for t in list_tiles:
-    l=glob(outdir + '/%s_?_?_5m_%s.tar*' %(t,version))
+    l=glob(outdir + '/%s_*%s_%s.tar*' %(t,resolution,version))
     tar_files.extend(l)
 
 # From each archive, extract only the dem file
@@ -243,7 +244,7 @@ print "\n*** Generate final DEM ***"
 #cmd = 'gdalwarp  -r average -co "COMPRESS=LZW" --optfile %s %s' %(list_file,args.outfile) # compression will fail if file > 4GB or BIGTIFF=Yes must be used
 cmd = 'gdalwarp  -r average -ot Int16 --optfile %s %s' %(list_file,args.outfile)  
 
-if args.te!=None:
+if args.te is not None:
 
       if args.latlon==True:
             # reproject extent to DEM extent
@@ -260,10 +261,10 @@ if args.te!=None:
             xmin, ymin, xmax, ymax = args.te
       cmd+= ' -te %f %f %f %f' %(xmin, ymin, xmax, ymax) 
 
-if args.tr!=None:
+if args.tr is not None:
       cmd+= ' -tr %s' %' '.join(args.tr)
 
-if args.t_srs!=None:
+if args.t_srs is not None:
       cmd+= ' -ts_srs %s' %args.t_srs
 
 if args.overwrite!=False:
