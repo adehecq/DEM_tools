@@ -29,6 +29,7 @@ parser.add_argument('outfile', type=str, help='str, path to the output file')
 # Optional arguments
 parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
 parser.add_argument('-area_th', dest='area_th', type=str, help='float, glacier with area (as read from RGI attributes in km2) below this threshold will be excluded (Default is 5 km2).', default=5)
+parser.add_argument('-d', dest='dist', type=float, help='float, download ArcticDEM tiles within this distance of the glacier outlines, in meters (Default is 30 km).', default=30e3)
 parser.add_argument('-te', dest='te', type=str, help='extent (xmin, ymin, xmax, ymax) of the output DEM, in the ArctiDEM stereo coordinates, unless -latlon is used.', nargs=4, default=None)
 parser.add_argument('-latlon', dest='latlon', help='if set to True, extent has to be specified in lat/lon.', action='store_true')
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
@@ -128,15 +129,34 @@ if args.shp is not None:
       ## Find polygons that intersect with glacier outlines (union)
       
       print "*** Find tiles intersecting with input outlines ***"
-      inds = []
-      for k in xrange(tiles.FeatureCount()):
-            gdal.TermProgress_nocb(float(k)/tiles.FeatureCount())
-    
-            feat = tiles.features[k]
-            if union.Intersect(feat.GetGeometryRef()):
-                  inds.append(k)
 
-      list_tiles = np.sort(np.unique(tiles.fields.values['tile'][inds]))
+      # First find the ones intersecting with glacier outlines envelope
+      ring = ogr.Geometry(ogr.wkbLinearRing)
+      xll, yll, xur, yur = union.GetEnvelope()
+      ring.AddPoint(xll, yll)
+      ring.AddPoint(xll, yur)
+      ring.AddPoint(xur, yur)
+      ring.AddPoint(xur, yll)
+      ring.AddPoint(xll, yll)
+      poly = ogr.Geometry(ogr.wkbPolygon)
+      poly.AddGeometry(ring)
+
+      inds1 = []
+      for k in xrange(tiles.FeatureCount()):
+            feat = tiles.features[k]
+            if poly.Distance(feat.GetGeometryRef()) <= args.dist: 
+                  inds1.append(k)
+
+      # Second, find exactly the tiles within the given distance of the glacier outlines
+      inds2 = []
+      for k in xrange(len(inds1)):
+            gdal.TermProgress_nocb(float(k)/len(inds1))
+    
+            feat = tiles.features[inds1[k]]
+            if union.Distance(feat.GetGeometryRef()) <= args.dist:  #union.Intersect(feat.GetGeometryRef()):
+                  inds2.append(inds1[k])
+
+      list_tiles = np.sort(np.unique(tiles.fields.values['tile'][inds2]))
 
 else:
       list_tiles = np.sort(np.unique(tiles.fields.values['tile']))
@@ -178,6 +198,7 @@ else:
             # -P destination folder
             # Don't forget the slash at the end of URL!
             wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/%s/' %(URL,version,resolution,t), '-P', '%s' %outdir]
+
             print ' CMD = ' + ' '.join(wget_cmd)
             out=subprocess.call(wget_cmd)
             if out!=0:
