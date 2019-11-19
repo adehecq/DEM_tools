@@ -51,7 +51,7 @@ resolution = '10m'
 
 ## Check that all necessary input arguments are specified
 if (args.shp is None) & (args.te is None):
-      print "ERROR: At least one of -shp or -te must be specified"
+      print("ERROR: At least one of -shp or -te must be specified")
       sys.exit(1)
 
 if args.te is not None:
@@ -69,7 +69,7 @@ def multipoly2poly(in_lyr, out_lyr):
                   addPolygon(geom.ExportToWkb(), out_lyr)
             k+=1
 
-      print "Processed %i features" %k
+      print("Processed %i features" %k)
 
       
 def addPolygon(simplePolygon, out_lyr):
@@ -98,7 +98,7 @@ tiles.read()
 
 if args.shp is not None:
       
-      print "*** Generate simplified geometry for shapefile ***"
+      print("*** Generate simplified geometry for shapefile ***")
 
       ## Read glacier outlines ##
       gl_outlines = vect.SingleLayerVector(args.shp)
@@ -109,7 +109,7 @@ if args.shp is not None:
 
       ## Replace MultiPolygons by Polygons ##
       nfeat = gl_outlines.FeatureCount()  # somehow necessary for the loop on features to work
-      print "%i features to process" %nfeat
+      print("%i features to process" %nfeat)
       out_ds = ogr.GetDriverByName('Memory').CreateDataSource('')
       out_lyr = out_ds.CreateLayer('poly', srs=gl_outlines.srs)
       multipoly2poly(gl_outlines.layer, out_lyr)
@@ -122,13 +122,13 @@ if args.shp is not None:
 
       # Check that geometry is valid (otherwise will fail later)
       if not union.IsValid():
-            print "ERROR with geometry"
+            print("ERROR with geometry")
             sys.exit(1)
 
 
       ## Find polygons that intersect with glacier outlines (union)
       
-      print "*** Find tiles intersecting with input outlines ***"
+      print("*** Find tiles intersecting with input outlines ***")
 
       # First find the ones intersecting with glacier outlines envelope
       ring = ogr.Geometry(ogr.wkbLinearRing)
@@ -181,12 +181,12 @@ if args.skip_download==True:
       pass
 else:
 
-      print "\n*** Download tiles in %s ***" %outdir
-      print "%i tiles to download" %len(list_tiles)
+      print("\n*** Download tiles in %s ***" %outdir)
+      print("%i tiles to download" %len(list_tiles))
 
       for t in list_tiles:
 
-            print "\n ** Tile %s **" %t
+            print("\n ** Tile %s **" %t)
 
             # wget options:
             # -r for recursive download
@@ -199,16 +199,16 @@ else:
             # Don't forget the slash at the end of URL!
             wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/%s/' %(URL,version,resolution,t), '-P', '%s' %outdir]
 
-            print ' CMD = ' + ' '.join(wget_cmd)
+            print(' CMD = ' + ' '.join(wget_cmd))
             out=subprocess.call(wget_cmd)
             if out!=0:
-                  print "Error in download !!"
+                  print("Error in download !!")
                   continue
       
 
 ## Untar all files ##
 
-print "\n*** Extract archives ***"
+print("\n*** Extract archives ***")
 
 # Get list of tar files to extract
 tar_files = []
@@ -233,7 +233,7 @@ for f in tar_files:
       else:
             out=subprocess.call(cmd)
             if out!=0:
-                  print "Error extracting file %s !!" %f
+                  print("Error extracting file %s !!" %f)
                   continue
       dem_files.append(dem_file)
 
@@ -260,7 +260,7 @@ np.savetxt(list_file,dem_files,fmt='%s')
 
 ## Generate output DEM ##
 
-print "\n*** Generate final DEM ***"
+print("\n*** Generate final DEM ***")
 
 #cmd = 'gdalwarp  -r average -co "COMPRESS=LZW" --optfile %s %s' %(list_file,args.outfile) # compression will fail if file > 4GB or BIGTIFF=Yes must be used
 cmd = 'gdalwarp  -r average -ot Int16 --optfile %s %s' %(list_file,args.outfile)  
@@ -291,9 +291,9 @@ if args.t_srs is not None:
 if args.overwrite!=False:
       cmd+= ' -overwrite'
 
-print cmd; out=subprocess.call(cmd,shell=True)
+print(cmd); out=subprocess.call(cmd,shell=True)
 if out!=0:
-      print "Error reprojecting file"
+      print("Error reprojecting file")
       sys.exit(1)
 
 
@@ -305,4 +305,4 @@ else:
       for f in dem_files:
             os.remove(f)
       #os.remove(list_file)
-      os.system('rm -r %s/robots.txt*' %outdir)
+      os.system('rm -rf %s/robots.txt*' %outdir)
