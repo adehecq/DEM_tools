@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description='Tool to bulk download the ArticDEM
 # Positional arguments
 parser.add_argument('tiles_file', type=str, help='str, path to the shapefile containing the outlines of the ArcticDEM tiles')
 parser.add_argument('outfile', type=str, help='str, path to the output file')
-
+parser.add_argument('res', type=str, help='str, ArcticDEM mosaic resolution, can be 2m, 10m or 32m.')
 
 # Optional arguments
 parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
@@ -34,11 +34,25 @@ parser.add_argument('-te', dest='te', type=str, help='extent (xmin, ymin, xmax, 
 parser.add_argument('-latlon', dest='latlon', help='if set to True, extent has to be specified in lat/lon.', action='store_true')
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
 parser.add_argument('-t_srs', dest='t_srs', type=str, help='projection of the output DEM in PROJ4 format (Default is from the input DEMs).', default=None)
-parser.add_argument('-skip-download', dest='skip_download', help='if set, will skip download and extracting of tiles, will use tiles already downloaded.', action='store_true')
+parser.add_argument('-skip-download', dest='skip_download', help='if set, will skip download of tiles, will use tiles already downloaded.', action='store_true')
+parser.add_argument('-skip-untar', dest='skip_untar', help='if set, will skip untarring downloaded tiles.', action='store_true')
 parser.add_argument('-overwrite', dest='overwrite', help='if set, will overwrite the output file if exists.', action='store_true')
 parser.add_argument('-outdir', dest='outdir', type=str, help='str, path to output directory where to save the tiles (Default, create a temporary file that is deleted a the end).', default=None)
 
 args = parser.parse_args()
+
+## Input arguments sanity checks
+
+possible_res = ['2m', '10m', '32m']
+assert(args.res in possible_res), "res should be in %s" %possible_res
+
+assert(not os.path.exists(args.outfile)), "Outfile already exists, remove or use a different name."
+
+assert(not ((args.shp is None) & (args.te is None))), "At least one of -shp or -te must be specified"
+
+if args.te is not None:
+      args.te = np.float32(args.te)
+
 
 ## Hard-coded server parameters ##
 
@@ -47,15 +61,7 @@ URL = 'http://data.pgc.umn.edu/elev/dem/setsm/ArcticDEM/mosaic/'
 
 # Version to be downloaded
 version = 'v3.0'
-resolution = '10m'
 
-## Check that all necessary input arguments are specified
-if (args.shp is None) & (args.te is None):
-      print("ERROR: At least one of -shp or -te must be specified")
-      sys.exit(1)
-
-if args.te is not None:
-      args.te = np.float32(args.te)
 
 ## Functions to convert MultiPolygons to Polygons
 def multipoly2poly(in_lyr, out_lyr):
@@ -197,7 +203,7 @@ else:
             # -R to exclude files
             # -P destination folder
             # Don't forget the slash at the end of URL!
-            wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/%s/' %(URL,version,resolution,t), '-P', '%s' %outdir]
+            wget_cmd = ['wget','-r','-N','-nd','-np','-nv','-R','index.html*','-R','robots.txt*','%s/%s/%s/%s/' %(URL,version,args.res,t), '-P', '%s' %outdir]
 
             print(' CMD = ' + ' '.join(wget_cmd))
             out=subprocess.call(wget_cmd)
@@ -208,29 +214,28 @@ else:
 
 ## Untar all files ##
 
-print("\n*** Extract archives ***")
+if not args.skip_untar:
+      print("\n*** Extract archives ***")
 
 # Get list of tar files to extract
 tar_files = []
 for t in list_tiles:
-    l=glob(outdir + '/%s_*%s_%s.tar*' %(t,resolution,version))
+    l=glob(outdir + '/%s_*%s_%s.tar*' %(t,args.res,version))
     tar_files.extend(l)
 
 # From each archive, extract only the dem file
 dem_files = []
 for f in tar_files:
       if f[-7:]=='.tar.gz':
-            print 'tar.gz', f 
             dem_file = f.replace('.tar.gz','_reg_dem.tif')
             cmd = ['tar','xzvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
       else:
-            print 'tar', f
             dem_file = f.replace('.tar','_reg_dem.tif')
             cmd = ['tar','xvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
-      print ' '.join(cmd)
-      if args.skip_download==True:
+      if args.skip_untar==True:
             pass
       else:
+            print(' '.join(cmd))
             out=subprocess.call(cmd)
             if out!=0:
                   print("Error extracting file %s !!" %f)
@@ -262,8 +267,10 @@ np.savetxt(list_file,dem_files,fmt='%s')
 
 print("\n*** Generate final DEM ***")
 
+# Interpolation and output type hard-coded for now.
+# ArcticDEM tiles exactly touch and are on a continuous grid, so no interpolation should be needed with the -tap option if spacing is kept the same
+cmd = 'gdalwarp -r bilinear -ot Int16 --optfile %s %s ' %(list_file,args.outfile)  
 #cmd = 'gdalwarp  -r average -co "COMPRESS=LZW" --optfile %s %s' %(list_file,args.outfile) # compression will fail if file > 4GB or BIGTIFF=Yes must be used
-cmd = 'gdalwarp  -r average -ot Int16 --optfile %s %s' %(list_file,args.outfile)  
 
 if args.te is not None:
 
@@ -280,11 +287,17 @@ if args.te is not None:
             ymax = max(y1,y2,y3,y4)
       else:
             xmin, ymin, xmax, ymax = args.te
-      cmd+= ' -te %f %f %f %f' %(xmin, ymin, xmax, ymax) 
+
+      # -tap option ensures that the output grid is the same as the input grid for a same spacing (i.e. not shift is created during resampling)
+      cmd+= ' -te %f %f %f %f -tap' %(xmin, ymin, xmax, ymax) 
 
 if args.tr is not None:
       cmd+= ' -tr %s' %' '.join(args.tr)
-
+elif args.te is not None:
+      # -tr option should be specified with -tap option
+      tr = args.res[:-1]  # use product resolution, skip the trailing m
+      cmd+= ' -tr %s %s' %(tr,tr)
+      
 if args.t_srs is not None:
       cmd+= ' -ts_srs %s' %args.t_srs
 
