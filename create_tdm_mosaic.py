@@ -27,7 +27,7 @@ parser.add_argument('outfile', type=str, help='str, path to the output raster fi
     
 # Optional arguments
 parser.add_argument('-te', dest='extent', type=float, help='output DEM extent xmin ymin xmax ymax',nargs=4)
-parser.add_argument('-shp', dest='shpfile', default=[], type=str, help='str, path to one or several shapefiles used for masking',nargs='*')
+parser.add_argument('-r', dest='resampling', type=str, default='bilinear', help='resampling algorithm to use, check GDAL for a list of algorithms available (Default is bilibear)')
 parser.add_argument('-overwrite', dest='overwrite', action='store_true', help='if set, will overwrite output file')
     
 args = parser.parse_args()
@@ -144,14 +144,14 @@ np.savetxt(listfile,masked_DEM_files,fmt='%s')
 # Create merged VRT file
 print("* Merge tiles *")
 vrtfile = outDir + 'merged_DEM.vrt'
-cmd = "gdalbuildvrt %s -input_file_list %s" %(vrtfile, listfile)
+cmd = "gdalbuildvrt -r %s %s -input_file_list %s" %(args.resampling, vrtfile, listfile)
 cprint(cmd); check_call(cmd.split())
 
 # Crop mosaic to final extent
 # Must use gdalwarp, as option -te in gdalbuildvrt creates horizontal shift...
 print("* Crop DEM *")
 mosaic_file = outDir + 'merged_dem.tif'
-cmd = "gdalwarp -te %g %g %g %g -r bilinear %s %s" %(xmin, ymin, xmax, ymax, vrtfile, mosaic_file)
+cmd = "gdalwarp -te %g %g %g %g -r %s %s %s" %(xmin, ymin, xmax, ymax, args.resampling, vrtfile, mosaic_file)
 cprint(cmd); check_call(cmd.split())
 
 # Correct geoid
