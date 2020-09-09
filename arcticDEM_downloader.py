@@ -150,14 +150,14 @@ if args.shp is not None:
       poly.AddGeometry(ring)
 
       inds1 = []
-      for k in xrange(tiles.FeatureCount()):
+      for k in range(tiles.FeatureCount()):
             feat = tiles.features[k]
             if poly.Distance(feat.GetGeometryRef()) <= args.dist: 
                   inds1.append(k)
 
       # Second, find exactly the tiles within the given distance of the glacier outlines
       inds2 = []
-      for k in xrange(len(inds1)):
+      for k in range(len(inds1)):
             gdal.TermProgress_nocb(float(k)/len(inds1))
     
             feat = tiles.features[inds1[k]]
