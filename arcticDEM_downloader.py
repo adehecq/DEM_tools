@@ -2,10 +2,10 @@
 #coding=utf-8
 
 """
-Description : Tool to bulk download the ArticDEM over a specified region.
+Description : Tool to bulk download the ArticDEM over a specified region. Note that currently, the output DEM is stored in Int16 rather than Float32.
 
 Author : Amaury Dehecq
-Last modified : Jul 2017
+Last modified : Sep 2020
 """
 
 import argparse, os, sys
@@ -18,35 +18,37 @@ from geoutils import geovector as vect
 import georaster as raster
 
 #Set up arguments
-parser = argparse.ArgumentParser(description='Tool to bulk download the ArticDEM over a specified region.')
+parser = argparse.ArgumentParser(description='Tool to bulk download the ArticDEM over a specified region. Note that currently, the output DEM is stored in Int16 rather than Float32.')
 
 
 # Positional arguments
-parser.add_argument('tiles_file', type=str, help='str, path to the shapefile containing the outlines of the ArcticDEM tiles')
+parser.add_argument('tiles_file', type=str, help='str, path to the shapefile containing the outlines of the ArcticDEM tiles. Can be downloaded from ArcticDEM website.')
 parser.add_argument('outfile', type=str, help='str, path to the output file')
 parser.add_argument('res', type=str, help='str, ArcticDEM mosaic resolution, can be 2m, 10m or 32m.')
 
 # Optional arguments
-parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
-parser.add_argument('-area_th', dest='area_th', type=str, help='float, glacier with area (as read from RGI attributes in km2) below this threshold will be excluded (Default is 5 km2).', default=5)
-parser.add_argument('-d', dest='dist', type=float, help='float, download ArcticDEM tiles within this distance of the glacier outlines, in meters (Default is 30 km).', default=30e3)
 parser.add_argument('-te', dest='te', type=str, help='extent (xmin, ymin, xmax, ymax) of the output DEM, in the ArctiDEM stereo coordinates, unless -latlon is used.', nargs=4, default=None)
 parser.add_argument('-latlon', dest='latlon', help='if set to True, extent has to be specified in lat/lon.', action='store_true')
 parser.add_argument('-tr', dest='tr', type=str, help='resolution (xres, yres) of the output DEM (Default is from the input DEMs).', nargs=2, default=None)
 parser.add_argument('-t_srs', dest='t_srs', type=str, help='projection of the output DEM in PROJ4 format (Default is from the input DEMs).', default=None)
+parser.add_argument('-shp', dest='shp', type=str, help='str, path to a shapefile containing RGI outlines. Only the tiles interesting with the glaciers will be downloaded (Default is None, but this or -te must be specified).', default=None)
+parser.add_argument('-area_th', dest='area_th', type=str, help='float, glacier with area (as read from RGI attributes in km2) below this threshold will be excluded (Default is 5 km2).', default=5)
+parser.add_argument('-d', dest='dist', type=float, help='float, download ArcticDEM tiles within this distance of the glacier outlines, in meters (Default is 30 km).', default=30e3)
+parser.add_argument('-co', dest='co', type=str, help="GDAL creation options (Default is 'COMPRESS=LZW TILED=YES BLOCKXSIZE=256 BLOCKYSIZE=256').", default=["COMPRESS=LZW","TILED=YES","BLOCKXSIZE=256","BLOCKYSIZE=256","BIGTIFF=IF_SAFER"], nargs='*')
+parser.add_argument('-outdir', dest='outdir', type=str, help='str, path to output directory where to save the tiles (Default, create a temporary file that is deleted a the end).', default=None)
 parser.add_argument('-skip-download', dest='skip_download', help='if set, will skip download of tiles, will use tiles already downloaded.', action='store_true')
 parser.add_argument('-skip-untar', dest='skip_untar', help='if set, will skip untarring downloaded tiles.', action='store_true')
 parser.add_argument('-overwrite', dest='overwrite', help='if set, will overwrite the output file if exists.', action='store_true')
-parser.add_argument('-outdir', dest='outdir', type=str, help='str, path to output directory where to save the tiles (Default, create a temporary file that is deleted a the end).', default=None)
 
 args = parser.parse_args()
+
 
 ## Input arguments sanity checks
 
 possible_res = ['2m', '10m', '32m']
 assert(args.res in possible_res), "res should be in %s" %possible_res
 
-assert(not os.path.exists(args.outfile)), "Outfile already exists, remove or use a different name."
+assert((not os.path.exists(args.outfile)) or args.overwrite), "Outfile already exists, remove or use a different name."
 
 assert(not ((args.shp is None) & (args.te is None))), "At least one of -shp or -te must be specified"
 
@@ -270,7 +272,6 @@ print("\n*** Generate final DEM ***")
 # Interpolation and output type hard-coded for now.
 # ArcticDEM tiles exactly touch and are on a continuous grid, so no interpolation should be needed with the -tap option if spacing is kept the same
 cmd = 'gdalwarp -r bilinear -ot Int16 --optfile %s %s ' %(list_file,args.outfile)  
-#cmd = 'gdalwarp  -r average -co "COMPRESS=LZW" --optfile %s %s' %(list_file,args.outfile) # compression will fail if file > 4GB or BIGTIFF=Yes must be used
 
 if args.te is not None:
 
@@ -300,6 +301,9 @@ elif args.te is not None:
       
 if args.t_srs is not None:
       cmd+= ' -ts_srs %s' %args.t_srs
+
+if len(args.co) >0:
+      cmd+= ' -co ' + ' -co '.join(args.co)
 
 if args.overwrite!=False:
       cmd+= ' -overwrite'
