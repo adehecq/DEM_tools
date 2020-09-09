@@ -140,7 +140,7 @@ if args.shp is not None:
 
       # First find the ones intersecting with glacier outlines envelope
       ring = ogr.Geometry(ogr.wkbLinearRing)
-      xll, yll, xur, yur = union.GetEnvelope()
+      xll, xur, yll, yur = union.GetEnvelope()
       ring.AddPoint(xll, yll)
       ring.AddPoint(xll, yur)
       ring.AddPoint(xur, yur)
@@ -154,7 +154,7 @@ if args.shp is not None:
             feat = tiles.features[k]
             if poly.Distance(feat.GetGeometryRef()) <= args.dist: 
                   inds1.append(k)
-
+            
       # Second, find exactly the tiles within the given distance of the glacier outlines
       inds2 = []
       for k in range(len(inds1)):
