@@ -22,7 +22,7 @@ Script to create DEM mosaics from locally downloaded tiles: `create_tdm_mosaic.p
 
 #### Copernicus GLO-30 ####
 
-Infos: https://spacedata.copernicus.eu/web/cscda/dataset-details?articleId=394198\
+Infos: https://spacedata.copernicus.eu/web/cscda/dataset-details?articleId=394198 \
 Vertical reference: EGM2008 geoid \
 Projection: lat/lon
 
