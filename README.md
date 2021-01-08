@@ -8,7 +8,7 @@ Contains various tools to download and process global Digital Elevation Model da
 
 Downloaded from https://www.pgc.umn.edu/data/arcticdem/. \
 Vertical reference: WGS84 ellipsoid. \
-Projection: Polar stereographic \
+Projection: Polar stereographic
 
 Script: `arcticDEM_downloader.py`
 
@@ -16,7 +16,7 @@ Script: `arcticDEM_downloader.py`
 
 Infos: https://tandemx-90m.dlr.de/ \
 Vertical reference: WGS84 ellipsoid \
-Projection: lat/lon \
+Projection: lat/lon
 
 Script to create DEM mosaics from locally downloaded tiles: `create_tdm_mosaic.py`
 
@@ -24,7 +24,7 @@ Script to create DEM mosaics from locally downloaded tiles: `create_tdm_mosaic.p
 
 Infos: https://spacedata.copernicus.eu/web/cscda/dataset-details?articleId=394198\
 Vertical reference: EGM2008 geoid \
-Projection: lat/lon \
+Projection: lat/lon
 
 Script to create DEM mosaics from locally downloaded tiles: `create_GLODEM_mosaic.py`
 
