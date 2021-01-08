@@ -33,6 +33,6 @@ Script to create DEM mosaics from locally downloaded tiles: `create_GLODEM_mosai
 
 Downloaded from OpenTopography (?) => link seem deprecated \
 Vertical reference: unsure \
-Projection: lat/lon \
+Projection: lat/lon
 
 Script: `srtm_downloader.py`=> Deprecated
