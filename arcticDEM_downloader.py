@@ -39,13 +39,17 @@ parser.add_argument('-outdir', dest='outdir', type=str, help='str, path to outpu
 parser.add_argument('-skip-download', dest='skip_download', help='if set, will skip download of tiles, will use tiles already downloaded.', action='store_true')
 parser.add_argument('-skip-untar', dest='skip_untar', help='if set, will skip untarring downloaded tiles.', action='store_true')
 parser.add_argument('-overwrite', dest='overwrite', help='if set, will overwrite the output file if exists.', action='store_true')
+parser.add_argument('-rema', dest='rema', help='if set, will download REMA (Antarctica) DEM instead.', action='store_true')
 
 args = parser.parse_args()
 
 
 ## Input arguments sanity checks
 
-possible_res = ['2m', '10m', '32m']
+if args.rema:
+      possible_res = ['8m']
+else:
+      possible_res = ['2m', '10m', '32m']
 assert(args.res in possible_res), "res should be in %s" %possible_res
 
 assert((not os.path.exists(args.outfile)) or args.overwrite), "Outfile already exists, remove or use a different name."
@@ -58,12 +62,20 @@ if args.te is not None:
 
 ## Hard-coded server parameters ##
 
-# URL of the ArctiDEM server
-URL = 'http://data.pgc.umn.edu/elev/dem/setsm/ArcticDEM/mosaic/'
-
-# Version to be downloaded
-version = 'v3.0'
-
+if args.rema:
+      # URL of the REMA server - version
+      URL = 'http://data.pgc.umn.edu/elev/dem/setsm/REMA/mosaic/'
+      # Version to be downloaded
+      version = 'v1.1'
+      # Suffix for DEM files
+      dem_suffix = "_dem.tif"
+else:
+      # URL of the ArctiDEM server
+      URL = 'http://data.pgc.umn.edu/elev/dem/setsm/ArcticDEM/mosaic/'
+      # Version to be downloaded
+      version = 'v3.0'
+      # Suffix for DEM files
+      dem_suffix = "_reg_dem.tif"
 
 ## Functions to convert MultiPolygons to Polygons
 def multipoly2poly(in_lyr, out_lyr):
@@ -222,17 +234,20 @@ if not args.skip_untar:
 # Get list of tar files to extract
 tar_files = []
 for t in list_tiles:
-    l=glob(outdir + '/%s_*%s_%s.tar*' %(t,args.res,version))
-    tar_files.extend(l)
+      if args.rema:
+            l=glob(outdir + '/%s_*%s.tar*' %(t,args.res))
+      else:
+            l=glob(outdir + '/%s_*%s_%s.tar*' %(t,args.res,version))
+      tar_files.extend(l)
 
 # From each archive, extract only the dem file
 dem_files = []
 for f in tar_files:
       if f[-7:]=='.tar.gz':
-            dem_file = f.replace('.tar.gz','_reg_dem.tif')
+            dem_file = f.replace('.tar.gz',dem_suffix)
             cmd = ['tar','xzvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
       else:
-            dem_file = f.replace('.tar','_reg_dem.tif')
+            dem_file = f.replace('.tar',dem_suffix)
             cmd = ['tar','xvf', '%s' %f,'-C',outdir,os.path.basename(dem_file)]
       if args.skip_untar==True:
             pass
