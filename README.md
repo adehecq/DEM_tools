@@ -4,7 +4,7 @@ Contains various tools to download and process global Digital Elevation Model da
 ### DEM sources ###
 
 
-#### ArcticDEM ####
+#### ArcticDEM / REMA ####
 
 Downloaded from https://www.pgc.umn.edu/data/arcticdem/. \
 Vertical reference: WGS84 ellipsoid. \
