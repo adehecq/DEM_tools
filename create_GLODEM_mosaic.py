@@ -163,6 +163,7 @@ if len(args.co)>0:
 
 # gdalwarp command
 cmd = "gdalwarp -te %f %f %f %f -r %s %s %s -ot %s %s" %(xmin, ymin, xmax, ymax, args.resampling, vrtfile, args.outfile, args.ot, gdal_opts)
+if args.overwrite: cmd += ' -overwrite'
 cprint(cmd); check_call(shlex.split(cmd))  # shlex.split ignore spaces in-between quotes, e.g. in t_srs
 
 # Correct geoid
