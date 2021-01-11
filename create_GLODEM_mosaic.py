@@ -3,7 +3,7 @@
 
 """
 Description : Create a mosaic of the copernicus 30m GLODEM from tiles stored locally. The tiles are merged, making sure that no horizontal shift is introduced.
-GLO-30 DEM vertical reference is EGM2008. With the -geoid option, the DEM is converted to the WGS84 ellispoid for comparison with other DEMs.
+GLO-30 DEM vertical reference is EGM2008. With the -ellips option, the DEM is converted to the WGS84 ellispoid for comparison with other DEMs.
 
 Author : Amaury Dehecq
 Last modified : Jan 2021
@@ -31,7 +31,7 @@ parser.add_argument('-tr', dest='tr', type=float, default=None, help='float, the
 parser.add_argument('-t_srs', dest='srs', type=str, default=None, help='str, a PROJ-4 string of the output projection. Default is same as input tiles, i.e. EPSG 4326.')
 parser.add_argument('-r', dest='resampling', type=str, default='cubic', help='resampling algorithm to use, check GDAL for a list of algorithms available (Default is cubic)')
 parser.add_argument('-ot', dest='ot', type=str, default='Int16', help='output data type. Original is Float32 but default is saved as Int16 to save space.')
-parser.add_argument('-geoid', dest='geoid', action='store_true', help='if set, will express elevation with reference to the ellispoid. GLO-30 DEM is w.r.t. the EGM2008 geoid.')
+parser.add_argument('-ellips', dest='ellips', action='store_true', help='if set, will express elevation with reference to the ellispoid. GLO-30 DEM is w.r.t. the EGM2008 geoid.')
 parser.add_argument('-co', dest='co', type=str, default=['COMPRESS=LZW','TILED=YES','BLOCKXSIZE=256','BLOCKYSIZE=256','BIGTIFF=IF_SAFER'], help="GDAL creation options (Default is COMPRESS=LZW TILED=YES BLOCKXSIZE=256 BLOCKYSIZE=256 BIGTIFF=IF_SAFER", nargs='*')
 parser.add_argument('-overwrite', dest='overwrite', action='store_true', help='if set, will overwrite output file')
 
@@ -55,7 +55,7 @@ if args.extent is None:
     raise SystemExit('ERROR: Extent must be specified')
 
 # Check that ASP is loaded
-if args.geoid:
+if args.ellips:
     try:
         FNULL = open(os.devnull, 'w')
         call('dem_geoid', stdout=FNULL)
@@ -166,7 +166,7 @@ cmd = "gdalwarp -te %f %f %f %f -r %s %s %s -ot %s %s" %(xmin, ymin, xmax, ymax,
 cprint(cmd); check_call(shlex.split(cmd))  # shlex.split ignore spaces in-between quotes, e.g. in t_srs
 
 # Correct geoid
-if args.geoid:
+if args.ellips:
     print("* Convert to WGS84 ellispoid *")
     outPrefix = os.path.splitext(args.outfile)[0]
     corrDEMf = outPrefix + '-adj.tif'
@@ -175,8 +175,7 @@ if args.geoid:
 
     # Move file
     os.rename(corrDEMf, args.outfile)
-else:
-    corrDEMf = mosaic_file
+
 
 # Remove temporary files
 os.remove(vrtfile)
