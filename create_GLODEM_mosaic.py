@@ -164,18 +164,27 @@ if len(args.co)>0:
 # gdalwarp command
 cmd = "gdalwarp -te %f %f %f %f -r %s %s %s -ot %s %s" %(xmin, ymin, xmax, ymax, args.resampling, vrtfile, args.outfile, args.ot, gdal_opts)
 if args.overwrite: cmd += ' -overwrite'
-cprint(cmd); check_call(shlex.split(cmd))  # shlex.split ignore spaces in-between quotes, e.g. in t_srs
+cprint(cmd); check_call(cmd, shell=True)  # shlex.split ignore spaces in-between quotes, e.g. in t_srs
 
 # Correct geoid
 if args.ellips:
     print("* Convert to WGS84 ellispoid *")
     outPrefix = os.path.splitext(args.outfile)[0]
     corrDEMf = outPrefix + '-adj.tif'
-    cmd = "dem_geoid --geoid EGM2008 --reverse-adjustment %s -o %s" %(args.outfile,outPrefix)
-    cprint(cmd); check_call(cmd.split())
+    cmd = "dem_geoid --geoid EGM2008 --reverse-adjustment %s -o %s --nodata_value 0" %(args.outfile,outPrefix)
+    cprint(cmd); check_call(cmd, shell=True)
 
-    # Move file
-    os.rename(corrDEMf, args.outfile)
+    # Copy itermediate file, temporarily
+    cmd = "cp %s %s_egm2008.tif" %(args.outfile, outPrefix)
+    cprint(cmd); check_call(cmd, shell=True)
+
+    # Convert back to Int16
+    if args.ot != 'Float32':
+        cmd = "gdal_translate -ot %s -co COMPRESS=LZW -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co BIGTIFF=IF_SAFER %s %s" %(args.ot, corrDEMf, args.outfile)
+        cprint(cmd); check_call(cmd, shell=True)
+        os.remove(corrDEMf)
+    else:
+        os.rename(corrDEMf, args.outfile)
 
 
 # Remove temporary files
