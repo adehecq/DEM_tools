@@ -14,9 +14,9 @@ from glob import glob
 import numpy as np
 import os, argparse
 from subprocess import call, check_call
-import osr, ogr
-import shlex
-
+from shapely.geometry.polygon import Polygon
+import shapely.ops
+import pyproj
 
 ## Set up arguments ##
 parser = argparse.ArgumentParser(description='Create a mosaic of the copernicus 30m GLODEM from tiles stored locally. The tiles are merged, making sure that no horizontal shift is introduced.')
@@ -95,43 +95,36 @@ lons = np.array(lons)
 lats = np.array(lats)
 
 ## Select tiles overlapping with requested extent ##
-# This fails for features extending over the 180 degree line. Would need to read each tile extent, convert to output SRS and test overlap instead.
 
+# Bounding box of output
 xmin, ymin, xmax, ymax = args.extent
+bbox = Polygon([(xmin, ymin), (xmax, ymin),(xmax, ymax), (xmin, ymax)])
+
+# Lat/lon projection
+latlon_crs = pyproj.crs.CRS('epsg:4326')
 
 if args.srs is not None:
-    # Create an SRS object for output proj
-    out_srs = osr.SpatialReference()
-    out_srs.ImportFromProj4(args.srs)
 
-    # Try to get EPSG code
-    out_srs.AutoIdentifyEPSG()
-    epsg = out_srs.GetAuthorityCode(None) 
+    # Output CRS
+    out_crs = pyproj.crs.CRS(args.srs)
 
-    # If 4326, then nothing to be done, otherwise, need to convert to lat/lon
-    if epsg=='4326':
-        lonmin, latmin, lonmax, latmax = args.extent
-    else:
-        epsg4326 = osr.SpatialReference()
-        epsg4326.ImportFromEPSG(4326)
-        epsg4326.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)   # Since GDAL 3.0, needed to make sure that WGS84 uses long/lat rather than the opposite
-        tr = osr.CoordinateTransformation(out_srs, epsg4326)
-        wkt = "POLYGON ((%f %f, %f %f, %f %f, %f %f, %f %f))" \
-            %(xmin,ymin,xmin,ymax,xmax,ymax,xmax,ymin,xmin,ymin)
-        poly = ogr.CreateGeometryFromWkt(wkt)
-        poly.AssignSpatialReference(epsg4326)
-        poly.Transform(tr)
-        lonmin, lonmax, latmin, latmax = poly.GetEnvelope()
-        print("Corresponding extent (lonmin, lonmax, latmin, latmax): %g, %g, %g, %g" %(lonmin,lonmax,latmin,latmax))
+    # Instance to reproject from lat/lon
+    reproj = pyproj.Transformer.from_crs(latlon_crs, out_crs, always_xy=True, skip_equivalent=True).transform
+
 else:
-    lonmin, latmin, lonmax, latmax = args.extent
+    reproj = pyproj.Transformer.from_crs(latlon_crs, latlon_crs, always_xy=True, skip_equivalent=True).transform
 
 # Select tiles
 tiles2keep = []
 for k in range(len(DEMfiles)):
-    if (lons[k] >= lonmin-1) & (lons[k] <= lonmax):
-        if (lats[k] >= latmin-1) & (lats[k] <= latmax):
-            tiles2keep.append(k)
+
+    # Convert tile bounds to output CRS
+    tile = Polygon([(lons[k], lats[k]), (lons[k]+1, lats[k]), (lons[k]+1, lats[k]+1), (lons[k], lats[k]+1)])
+    tile_proj = shapely.ops.transform(reproj, tile)
+
+    # Keep if intersect with output bounds
+    if tile_proj.intersects(bbox):
+        tiles2keep.append(k)
 
 DEMfiles = DEMfiles[tiles2keep]
 print("Found %i tiles overlapping with set extent" %len(DEMfiles))
@@ -164,7 +157,7 @@ if len(args.co)>0:
 # gdalwarp command
 cmd = "gdalwarp -te %f %f %f %f -r %s %s %s -ot %s %s" %(xmin, ymin, xmax, ymax, args.resampling, vrtfile, args.outfile, args.ot, gdal_opts)
 if args.overwrite: cmd += ' -overwrite'
-cprint(cmd); check_call(cmd, shell=True)  # shlex.split ignore spaces in-between quotes, e.g. in t_srs
+cprint(cmd); check_call(cmd, shell=True)
 
 # Correct geoid
 if args.ellips:
