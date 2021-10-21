@@ -138,7 +138,7 @@ np.savetxt(listfile, DEMfiles, fmt='%s')
 # if no resampling method specified, can lead to N/S oriented banding artifacts when tiles above 70N (with different grid cell) are included
 print("* Merge tiles *")
 vrtfile = os.path.splitext(args.outfile)[0] + '.vrt'
-cmd = "gdalbuildvrt -r %s %s -input_file_list %s" %(args.resampling, vrtfile, listfile)
+cmd = "gdalbuildvrt -r %s %s -input_file_list %s -resolution highest" %(args.resampling, vrtfile, listfile)
 cprint(cmd); check_call(cmd.split())
 
 ## Create final mosaic ##
