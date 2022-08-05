@@ -164,6 +164,7 @@ if args.ellips:
     print("* Convert to WGS84 ellispoid *")
     outPrefix = os.path.splitext(args.outfile)[0]
     corrDEMf = outPrefix + '-adj.tif'
+    # Set nodata value to 0, which masks oceans
     cmd = "dem_geoid --geoid EGM2008 --reverse-adjustment %s -o %s --nodata_value 0" %(args.outfile,outPrefix)
     cprint(cmd); check_call(cmd, shell=True)
 
@@ -171,13 +172,15 @@ if args.ellips:
     cmd = "cp %s %s_egm2008.tif" %(args.outfile, outPrefix)
     cprint(cmd); check_call(cmd, shell=True)
 
-    # Convert back to Int16
+    # Convert back to Int16, also set nodata to -32768 as 0 could be an actual value (e.g. cause issues with gdal_fillnodata.py)
     if args.ot != 'Float32':
-        cmd = "gdal_translate -ot %s -co COMPRESS=LZW -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co BIGTIFF=IF_SAFER %s %s" %(args.ot, corrDEMf, args.outfile)
+        cmd = "gdalwarp -srcnodata 0 -dstnodata -32768 -ot %s -co COMPRESS=LZW -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co BIGTIFF=IF_SAFER %s %s -overwrite" %(args.ot, corrDEMf, args.outfile)
         cprint(cmd); check_call(cmd, shell=True)
         os.remove(corrDEMf)
     else:
-        os.rename(corrDEMf, args.outfile)
+        cmd = "gdalwarp -srcnodata 0 -dstnodata -32768 -co COMPRESS=LZW -co TILED=YES -co BLOCKXSIZE=256 -co BLOCKYSIZE=256 -co BIGTIFF=IF_SAFER %s %s -overwrite" %(corrDEMf, args.outfile)
+        cprint(cmd); check_call(cmd, shell=True)
+        os.remove(corrDEMf)
 
 
 # Remove temporary files
